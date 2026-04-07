@@ -1,0 +1,9 @@
+name: ManualMinecart
+version: 1.0.0
+main: net.sioyama.manualminecart.ManualMinecart
+api-version: '1.21'
+commands:
+ manualminecart:
+  description: ManualMinecart main command
+  usage: /manualminecart
+  aliases: [mmc]
