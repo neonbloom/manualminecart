@@ -21,6 +21,7 @@ import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.util.Vector;
 
 public class ManualMinecart extends JavaPlugin implements Listener {
+	
 	@Override
 	public void onEnable() {
 		getLogger().info("ManualMinecart started successfully.");
