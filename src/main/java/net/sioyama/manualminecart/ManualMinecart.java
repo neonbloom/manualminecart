@@ -83,7 +83,7 @@ public class ManualMinecart extends JavaPlugin implements Listener {
 			// タブ補完
 			List<String> suggestions = new ArrayList<>();
 			suggestions.add("help");
-			suggestions.add("cart");
+			suggestions.add("set");
 			suggestions.add("stick");
 			return suggestions;
 		}
