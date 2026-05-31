@@ -25,6 +25,7 @@ public class ManualMinecart extends JavaPlugin implements Listener {
 	
 	@Override
 	public void onEnable() {
+		getServer().getPluginManager().registerEvents(new InputNotch(this), this);
 		getLogger().info("ManualMinecart started successfully.");
 	}
 	
