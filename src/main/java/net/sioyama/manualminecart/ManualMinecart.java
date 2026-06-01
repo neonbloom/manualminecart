@@ -22,6 +22,14 @@ import org.bukkit.plugin.java.JavaPlugin;
 
 public class ManualMinecart extends JavaPlugin implements Listener {
 	Map<UUID, TrainState> ts = new HashMap<>();
+	public TrainState setTrainState(UUID uuid) {
+		TrainState state = ts.get(uuid);
+		if (state == null) {
+			state = new TrainState();
+			ts.put(uuid, state);
+		}
+		return state;
+	}
 	
 	@Override
 	public void onEnable() {
