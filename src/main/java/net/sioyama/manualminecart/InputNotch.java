@@ -3,6 +3,9 @@ package net.sioyama.manualminecart;
 import com.bergerkiller.bukkit.tc.controller.MinecartGroup;
 import com.bergerkiller.bukkit.tc.controller.MinecartMember;
 import com.bergerkiller.bukkit.tc.controller.MinecartMemberStore;
+import java.util.HashSet;
+import java.util.Set;
+import java.util.UUID;
 import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
@@ -19,6 +22,7 @@ import org.bukkit.persistence.PersistentDataType;
 
 public final class InputNotch implements Listener {
     private final ManualMinecart plugin;
+    private final Set<UUID> clickCooldown = new HashSet<>();
 
     public InputNotch(ManualMinecart plugin) {
         this.plugin = plugin;
@@ -58,12 +62,20 @@ public final class InputNotch implements Listener {
         }
 
         MinecartGroup group = member.getGroup();
+        UUID playerId = player.getUniqueId();
+        if (!clickCooldown.add(playerId)) {
+            event.setCancelled(true);
+            return;
+        }
+        plugin.getServer().getScheduler().runTaskLater(
+                plugin, () -> clickCooldown.remove(playerId), 2L);
+
         TrainState state = plugin.getTrainState(group);
         int previousNotch = state.getNotch();
         state.changeNotch(change);
         if (previousNotch <= TrainState.NEUTRAL
                 && state.getNotch() > TrainState.NEUTRAL) {
-            plugin.setDirectionFromView(group, state, player);
+            plugin.setDirectionFromView(group, member, state, player);
         }
         event.setCancelled(true);
     }
