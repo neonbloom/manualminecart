@@ -3,8 +3,6 @@ package net.sioyama.manualminecart;
 import com.bergerkiller.bukkit.tc.controller.MinecartGroup;
 import com.bergerkiller.bukkit.tc.controller.MinecartMember;
 import com.bergerkiller.bukkit.tc.controller.MinecartMemberStore;
-import net.md_5.bungee.api.ChatMessageType;
-import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Material;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
@@ -61,14 +59,13 @@ public final class InputNotch implements Listener {
 
         MinecartGroup group = member.getGroup();
         TrainState state = plugin.getTrainState(group);
+        int previousNotch = state.getNotch();
         state.changeNotch(change);
+        if (previousNotch <= TrainState.NEUTRAL
+                && state.getNotch() > TrainState.NEUTRAL) {
+            plugin.setDirectionFromView(group, state, player);
+        }
         event.setCancelled(true);
-
-        long speed = Math.round(Math.abs(group.getAverageForce()) * 72.0);
-        String message = "ノッチ " + state.getNotchName() + "  速度 " + speed + " km/h";
-        player.spigot().sendMessage(
-                ChatMessageType.ACTION_BAR,
-                new TextComponent(message));
     }
 
     private boolean isControlStick(ItemStack item) {
