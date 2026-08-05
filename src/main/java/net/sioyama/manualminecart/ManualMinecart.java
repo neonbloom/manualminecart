@@ -7,6 +7,8 @@ import com.bergerkiller.bukkit.tc.properties.TrainProperties;
 import com.bergerkiller.bukkit.tc.properties.TrainPropertiesStore;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
+import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -77,9 +79,14 @@ public final class ManualMinecart extends JavaPlugin {
         return state;
     }
 
-    void setDirectionFromView(MinecartGroup group, TrainState state, Player player) {
+    void setDirectionFromView(
+            MinecartGroup group, MinecartMember<?> member, TrainState state, Player player) {
+        if (Math.abs(group.getAverageForce()) >= 0.02) {
+            return;
+        }
+
         Vector view = player.getEyeLocation().getDirection().setY(0.0);
-        Vector trainForward = group.head().getOrientationForward().clone().setY(0.0);
+        Vector trainForward = getGroupForwardAtMember(group, member);
         if (view.lengthSquared() < 0.0001 || trainForward.lengthSquared() < 0.0001) {
             return;
         }
@@ -87,19 +94,60 @@ public final class ManualMinecart extends JavaPlugin {
         state.setDirection(view.dot(trainForward) >= 0.0 ? 1 : -1);
     }
 
+    private Vector getGroupForwardAtMember(MinecartGroup group, MinecartMember<?> member) {
+        int index = group.indexOf(member);
+        if (index < 0 || group.size() == 1) {
+            return member.getOrientationForward().clone().setY(0.0);
+        }
+
+        Vector memberPosition = member.getEntity().getLocation().toVector();
+        Vector groupForward;
+        if (index == 0) {
+            Vector behindPosition = group.get(1).getEntity().getLocation().toVector();
+            groupForward = memberPosition.subtract(behindPosition);
+        } else {
+            Vector aheadPosition = group.get(index - 1).getEntity().getLocation().toVector();
+            groupForward = aheadPosition.subtract(memberPosition);
+        }
+        return groupForward.setY(0.0);
+    }
+
     private void tickTrains() {
-        trainStates.entrySet().removeIf(entry -> {
+        Map<MinecartGroup, TrainState> activeGroups = new IdentityHashMap<>();
+        Map<MinecartGroup, String> activeNames = new IdentityHashMap<>();
+        List<String> staleAliases = new ArrayList<>();
+
+        Iterator<Map.Entry<String, TrainState>> iterator = trainStates.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, TrainState> entry = iterator.next();
             TrainProperties properties = TrainPropertiesStore.get(entry.getKey());
             if (properties == null) {
-                return true;
+                iterator.remove();
+                continue;
             }
 
             MinecartGroup group = properties.getHolder();
             if (group != null && !group.isEmpty()) {
-                moveTrain(group, entry.getValue());
+                String activeName = group.getProperties().getTrainName();
+                boolean canonicalState = entry.getKey().equals(activeName);
+                if (canonicalState || !activeGroups.containsKey(group)) {
+                    activeGroups.put(group, entry.getValue());
+                    activeNames.put(group, activeName);
+                }
+                if (!canonicalState) {
+                    staleAliases.add(entry.getKey());
+                }
             }
-            return false;
-        });
+        }
+
+        for (String alias : staleAliases) {
+            trainStates.remove(alias);
+        }
+        for (Map.Entry<MinecartGroup, TrainState> entry : activeGroups.entrySet()) {
+            String activeName = activeNames.get(entry.getKey());
+            TrainState state = trainStates.computeIfAbsent(activeName, ignored -> entry.getValue());
+            moveTrain(entry.getKey(), state);
+        }
     }
 
     private void moveTrain(MinecartGroup group, TrainState state) {
