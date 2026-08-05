@@ -14,6 +14,8 @@ import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.block.BlockBreakEvent;
+import org.bukkit.event.block.BlockDamageEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
@@ -49,6 +51,12 @@ public final class InputNotch implements Listener {
             return;
         }
 
+        // The control stick is an input device, so left-clicking a block with it
+        // must never start normal block interaction or block destruction.
+        if (action == Action.LEFT_CLICK_BLOCK) {
+            event.setCancelled(true);
+        }
+
         Player player = event.getPlayer();
         Entity vehicle = player.getVehicle();
         if (!(vehicle instanceof Minecart minecart) || !plugin.isManualMinecart(minecart)) {
@@ -78,6 +86,20 @@ public final class InputNotch implements Listener {
             plugin.setDirectionFromView(group, member, state, player);
         }
         event.setCancelled(true);
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBlockDamage(BlockDamageEvent event) {
+        if (isControlStick(event.getItemInHand())) {
+            event.setCancelled(true);
+        }
+    }
+
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = false)
+    public void onBlockBreak(BlockBreakEvent event) {
+        if (isControlStick(event.getPlayer().getInventory().getItemInMainHand())) {
+            event.setCancelled(true);
+        }
     }
 
     private boolean isControlStick(ItemStack item) {

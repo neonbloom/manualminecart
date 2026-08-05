@@ -12,6 +12,7 @@ public final class TrainState {
 
     private int notch;
     private int direction;
+    private boolean derailed;
 
     public TrainState() {
         this(NEUTRAL, 1);
@@ -20,6 +21,7 @@ public final class TrainState {
     public TrainState(int notch, int direction) {
         this.notch = clampNotch(notch);
         this.direction = direction < 0 ? -1 : 1;
+        this.derailed = false;
     }
 
     public int getNotch() {
@@ -30,12 +32,24 @@ public final class TrainState {
         notch = clampNotch(notch + amount);
     }
 
+    public void setNeutral() {
+        notch = NEUTRAL;
+    }
+
     public int getDirection() {
         return direction;
     }
 
     public void setDirection(int direction) {
         this.direction = direction < 0 ? -1 : 1;
+    }
+
+    public boolean isDerailed() {
+        return derailed;
+    }
+
+    public void setDerailed(boolean derailed) {
+        this.derailed = derailed;
     }
 
     public void syncDirection(double force) {

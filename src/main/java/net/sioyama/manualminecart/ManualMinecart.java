@@ -32,6 +32,7 @@ import org.bukkit.util.Vector;
 public final class ManualMinecart extends JavaPlugin {
     private static final double MAX_SPEED_KMH = 50.0;
     private static final double MAX_SPEED = MAX_SPEED_KMH / 72.0;
+    private static final double STOPPED_SPEED = 0.0001;
     private static final double TICKS_PER_SECOND_SQUARED = 20.0 * 20.0;
 
     private final Map<String, TrainState> trainStates = new HashMap<>();
@@ -74,16 +75,17 @@ public final class ManualMinecart extends JavaPlugin {
 
     TrainState getTrainState(MinecartGroup group) {
         String trainName = group.getProperties().getTrainName();
-        TrainState state = trainStates.computeIfAbsent(trainName, ignored -> new TrainState());
-        state.syncDirection(group.getAverageForce());
-        return state;
+        return trainStates.computeIfAbsent(trainName, ignored -> new TrainState());
     }
 
     void setDirectionFromView(
             MinecartGroup group, MinecartMember<?> member, TrainState state, Player player) {
-        if (Math.abs(group.getAverageForce()) >= 0.02) {
+        // Direction changes are only allowed while stopped. Clear the tiny
+        // residual velocity that can remain in TrainCarts at displayed 0 km/h.
+        if (Math.abs(group.getAverageForce()) > STOPPED_SPEED) {
             return;
         }
+        group.stop();
 
         Vector view = player.getEyeLocation().getDirection().setY(0.0);
         Vector trainForward = getGroupForwardAtMember(group, member);
@@ -91,13 +93,24 @@ public final class ManualMinecart extends JavaPlugin {
             return;
         }
 
-        state.setDirection(view.dot(trainForward) >= 0.0 ? 1 : -1);
+        // Reverse TrainCarts' own head/tail and per-member direction state while
+        // the train is stopped. Positive force can then be used on every tick.
+        // Repeating this procedure at the next stop makes any number of
+        // reversals possible without alternating negative force every tick.
+        if (view.dot(trainForward) < 0.0) {
+            group.reverse();
+        }
+        state.setDirection(1);
     }
 
     private Vector getGroupForwardAtMember(MinecartGroup group, MinecartMember<?> member) {
         int index = group.indexOf(member);
         if (index < 0 || group.size() == 1) {
-            return member.getOrientationForward().clone().setY(0.0);
+            // A minecart's visual orientation does not change when TrainCarts
+            // reverses a one-cart train. Its remembered rail direction does.
+            // Using the visual orientation here is what made the first reversal
+            // work and every later reversal choose the wrong side.
+            return member.getDirection().getDirection().setY(0.0);
         }
 
         Vector memberPosition = member.getEntity().getLocation().toVector();
@@ -151,6 +164,20 @@ public final class ManualMinecart extends JavaPlugin {
     }
 
     private void moveTrain(MinecartGroup group, TrainState state) {
+        if (isGroupDerailed(group)) {
+            if (!state.isDerailed()) {
+                // Cut traction once at the moment of derailment. Do not keep
+                // calling stop(), because a derailed cart must still be able to
+                // fall under gravity on later ticks.
+                group.stop();
+                state.setNeutral();
+                state.setDerailed(true);
+            }
+            showTrainStatus(group, state, 0.0);
+            return;
+        }
+        state.setDerailed(false);
+
         double speed = Math.abs(group.getAverageForce());
         double acceleration = switch (state.getNotch()) {
             case TrainState.P1 -> powerAcceleration(0.35, speed);
@@ -168,13 +195,22 @@ public final class ManualMinecart extends JavaPlugin {
             nextSpeed = Math.min(MAX_SPEED, nextSpeed);
         }
 
-        if (nextSpeed <= 0.0001) {
+        if (nextSpeed <= STOPPED_SPEED) {
             group.stop();
         } else {
-            group.setForwardForce(state.getDirection() * nextSpeed);
+            group.setForwardForce(nextSpeed);
         }
 
         showTrainStatus(group, state, Math.max(0.0, nextSpeed));
+    }
+
+    private boolean isGroupDerailed(MinecartGroup group) {
+        for (MinecartMember<?> member : group) {
+            if (member.isDerailed()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private void showTrainStatus(MinecartGroup group, TrainState state, double speed) {
@@ -228,8 +264,8 @@ public final class ManualMinecart extends JavaPlugin {
         }
 
         if (args[0].equalsIgnoreCase("help")) {
-            sender.sendMessage("右クリック: 力行側 / 左クリック: 制動側");
-            sender.sendMessage("非常 - B3 - B2 - B1 - N - P1 - P2 - P3");
+            sender.sendMessage("右クリック: 力行 / 左クリック: 制動");
+            sender.sendMessage("EB - B3 - B2 - B1 - N - P1 - P2 - P3");
             return true;
         }
 
