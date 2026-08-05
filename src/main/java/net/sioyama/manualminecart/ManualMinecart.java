@@ -131,7 +131,7 @@ public final class ManualMinecart extends JavaPlugin {
 
     private void showTrainStatus(MinecartGroup group, TrainState state, double speed) {
         long speedKmh = Math.round(speed * 72.0);
-        String message = state.getDisplayName() + "　" + speedKmh + "ｋｍ／ｈ";
+        String message = state.getDisplayName() + "　" + toFullWidth(speedKmh) + "ｋｍ／ｈ";
 
         for (Player player : getServer().getOnlinePlayers()) {
             Entity vehicle = player.getVehicle();
@@ -146,6 +146,15 @@ public final class ManualMinecart extends JavaPlugin {
                         new TextComponent(message));
             }
         }
+    }
+
+    private String toFullWidth(long number) {
+        String halfWidth = Long.toString(number);
+        StringBuilder fullWidth = new StringBuilder(halfWidth.length());
+        for (int i = 0; i < halfWidth.length(); i++) {
+            fullWidth.append((char) (halfWidth.charAt(i) - '0' + '０'));
+        }
+        return fullWidth.toString();
     }
 
     private double powerAcceleration(double lowSpeedAcceleration, double speed) {
@@ -215,7 +224,7 @@ public final class ManualMinecart extends JavaPlugin {
         properties.setManualMovementAllowed(false);
         getTrainState(group);
 
-        player.sendMessage("ManualMinecartを設定しました。最高速度: 50 km/h");
+        player.sendMessage("ManualMinecartを設定しました。最高速度: ５０ｋｍ／ｈ");
     }
 
     private void giveStick(Player player) {
