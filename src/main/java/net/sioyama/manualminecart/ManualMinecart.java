@@ -11,6 +11,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.command.Command;
@@ -23,6 +25,7 @@ import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
 import org.bukkit.scheduler.BukkitTask;
+import org.bukkit.util.Vector;
 
 public final class ManualMinecart extends JavaPlugin {
     private static final double MAX_SPEED_KMH = 50.0;
@@ -74,6 +77,16 @@ public final class ManualMinecart extends JavaPlugin {
         return state;
     }
 
+    void setDirectionFromView(MinecartGroup group, TrainState state, Player player) {
+        Vector view = player.getEyeLocation().getDirection().setY(0.0);
+        Vector trainForward = group.head().getOrientationForward().clone().setY(0.0);
+        if (view.lengthSquared() < 0.0001 || trainForward.lengthSquared() < 0.0001) {
+            return;
+        }
+
+        state.setDirection(view.dot(trainForward) >= 0.0 ? 1 : -1);
+    }
+
     private void tickTrains() {
         trainStates.entrySet().removeIf(entry -> {
             TrainProperties properties = TrainPropertiesStore.get(entry.getKey());
@@ -111,6 +124,27 @@ public final class ManualMinecart extends JavaPlugin {
             group.stop();
         } else {
             group.setForwardForce(state.getDirection() * nextSpeed);
+        }
+
+        showTrainStatus(group, state, Math.max(0.0, nextSpeed));
+    }
+
+    private void showTrainStatus(MinecartGroup group, TrainState state, double speed) {
+        long speedKmh = Math.round(speed * 72.0);
+        String message = state.getDisplayName() + "　" + speedKmh + "ｋｍ／ｈ";
+
+        for (Player player : getServer().getOnlinePlayers()) {
+            Entity vehicle = player.getVehicle();
+            if (!(vehicle instanceof Minecart minecart)) {
+                continue;
+            }
+
+            MinecartMember<?> member = MinecartMemberStore.getFromEntity(minecart);
+            if (member != null && member.getGroup() == group) {
+                player.spigot().sendMessage(
+                        ChatMessageType.ACTION_BAR,
+                        new TextComponent(message));
+            }
         }
     }
 
