@@ -1,5 +1,7 @@
 # ManualMinecart
 
+おことわり 大半をChatGPTが書いていますが、問題はないと思います。
+
 Spigot 1.21.1とTrainCarts用の手動運転プラグインです。
 
 ## 導入
