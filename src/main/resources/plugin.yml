@@ -7,3 +7,4 @@ commands:
   description: ManualMinecart main command
   usage: /manualminecart
   aliases: [mmc]
+  depend: [Train_Carts]

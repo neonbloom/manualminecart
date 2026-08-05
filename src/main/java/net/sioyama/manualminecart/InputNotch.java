@@ -1,52 +1,84 @@
 package net.sioyama.manualminecart;
 
+import com.bergerkiller.bukkit.tc.controller.MinecartGroup;
+import com.bergerkiller.bukkit.tc.controller.MinecartMember;
+import com.bergerkiller.bukkit.tc.controller.MinecartMemberStore;
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Material;
-import org.bukkit.NamespacedKey;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.Minecart;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
 import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
 public class InputNotch implements Listener {
 	private final ManualMinecart plugin;
+
 	public InputNotch(ManualMinecart plugin) {
 		this.plugin = plugin;
 	}
-	@EventHandler
-	public void onPlayerInteract (PlayerInteractEvent e) {
-		if (e.getAction() == Action.LEFT_CLICK_AIR || e.getAction() == Action.LEFT_CLICK_BLOCK) {
-			// 棒かどうか
-			ItemStack item = e.getItem();
-			if (item != null && item.getType() == Material.STICK) {
-				if (!item.hasItemMeta()) {
-					return;
-				}
-				// mmc棒かどうか
-				ItemMeta meta = item.getItemMeta();
-				NamespacedKey key = new NamespacedKey(plugin, "manualminecartstick");
-				Integer value = meta.getPersistentDataContainer().get(key, PersistentDataType.INTEGER);
-				if (value == null || value != 1) {
-					return;
-				}
-				// set済トロッコかどうか
-				Player player = e.getPlayer();
-				Entity vehicle = player.getVehicle();
-				if (!(vehicle instanceof Minecart minecart)) {
-					return;
-				}
-				NamespacedKey minecartKey = new NamespacedKey(plugin, "manualminecart");
-				Integer minecartValue = minecart.getPersistentDataContainer().get(minecartKey, PersistentDataType.INTEGER);
-				if (minecartValue == null || minecartValue != 1) {
-					return;
-				}
-				player.sendMessage("クリック検知、mmc棒、set済");
-			}
+
+	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+	public void onPlayerInteract(PlayerInteractEvent e) {
+		if (e.getHand() != EquipmentSlot.HAND) {
+			return;
 		}
+
+		int amount;
+		Action action = e.getAction();
+		if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+			amount = 1;
+		} else if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+			amount = -1;
+		} else {
+			return;
+		}
+
+		ItemStack item = e.getItem();
+		if (item == null || item.getType() != Material.STICK || !item.hasItemMeta()) {
+			return;
+		}
+
+		ItemMeta meta = item.getItemMeta();
+		Integer stickValue = meta.getPersistentDataContainer().get(
+				plugin.getStickKey(), PersistentDataType.INTEGER);
+		if (!Integer.valueOf(1).equals(stickValue)) {
+			return;
+		}
+
+		Player player = e.getPlayer();
+		Entity vehicle = player.getVehicle();
+		if (!(vehicle instanceof Minecart minecart)) {
+			return;
+		}
+
+		Integer minecartValue = minecart.getPersistentDataContainer().get(
+				plugin.getMinecartKey(), PersistentDataType.INTEGER);
+		if (!Integer.valueOf(1).equals(minecartValue)) {
+			return;
+		}
+
+		MinecartMember<?> member = MinecartMemberStore.getFromEntity(minecart);
+		if (member == null) {
+			player.sendMessage("このトロッコはTrainCartsの列車ではありません。");
+			return;
+		}
+
+		MinecartGroup group = member.getGroup();
+		TrainState state = plugin.getTrainState(group);
+		state.changeNotch(amount);
+		e.setCancelled(true);
+
+		long speed = Math.round(Math.abs(group.getAverageForce()) * 72.0);
+		String text = "ノッチ " + state.getNotchName() + "  速度 " + speed + " km/h";
+		player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(text));
 	}
 }
