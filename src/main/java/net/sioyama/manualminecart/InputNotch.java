@@ -19,66 +19,66 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 
-public class InputNotch implements Listener {
-	private final ManualMinecart plugin;
+public final class InputNotch implements Listener {
+    private final ManualMinecart plugin;
 
-	public InputNotch(ManualMinecart plugin) {
-		this.plugin = plugin;
-	}
+    public InputNotch(ManualMinecart plugin) {
+        this.plugin = plugin;
+    }
 
-	@EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
-	public void onPlayerInteract(PlayerInteractEvent e) {
-		if (e.getHand() != EquipmentSlot.HAND) {
-			return;
-		}
+    @EventHandler(priority = EventPriority.HIGH, ignoreCancelled = true)
+    public void onPlayerInteract(PlayerInteractEvent event) {
+        if (event.getHand() != EquipmentSlot.HAND) {
+            return;
+        }
 
-		int amount;
-		Action action = e.getAction();
-		if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
-			amount = 1;
-		} else if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
-			amount = -1;
-		} else {
-			return;
-		}
+        int change;
+        Action action = event.getAction();
+        if (action == Action.RIGHT_CLICK_AIR || action == Action.RIGHT_CLICK_BLOCK) {
+            change = 1;
+        } else if (action == Action.LEFT_CLICK_AIR || action == Action.LEFT_CLICK_BLOCK) {
+            change = -1;
+        } else {
+            return;
+        }
 
-		ItemStack item = e.getItem();
-		if (item == null || item.getType() != Material.STICK || !item.hasItemMeta()) {
-			return;
-		}
+        ItemStack item = event.getItem();
+        if (!isControlStick(item)) {
+            return;
+        }
 
-		ItemMeta meta = item.getItemMeta();
-		Integer stickValue = meta.getPersistentDataContainer().get(
-				plugin.getStickKey(), PersistentDataType.INTEGER);
-		if (!Integer.valueOf(1).equals(stickValue)) {
-			return;
-		}
+        Player player = event.getPlayer();
+        Entity vehicle = player.getVehicle();
+        if (!(vehicle instanceof Minecart minecart) || !plugin.isManualMinecart(minecart)) {
+            return;
+        }
 
-		Player player = e.getPlayer();
-		Entity vehicle = player.getVehicle();
-		if (!(vehicle instanceof Minecart minecart)) {
-			return;
-		}
+        MinecartMember<?> member = MinecartMemberStore.getFromEntity(minecart);
+        if (member == null || member.getGroup() == null) {
+            player.sendMessage("このトロッコはTrainCartsの列車ではありません。");
+            return;
+        }
 
-		Integer minecartValue = minecart.getPersistentDataContainer().get(
-				plugin.getMinecartKey(), PersistentDataType.INTEGER);
-		if (!Integer.valueOf(1).equals(minecartValue)) {
-			return;
-		}
+        MinecartGroup group = member.getGroup();
+        TrainState state = plugin.getTrainState(group);
+        state.changeNotch(change);
+        event.setCancelled(true);
 
-		MinecartMember<?> member = MinecartMemberStore.getFromEntity(minecart);
-		if (member == null) {
-			player.sendMessage("このトロッコはTrainCartsの列車ではありません。");
-			return;
-		}
+        long speed = Math.round(Math.abs(group.getAverageForce()) * 72.0);
+        String message = "ノッチ " + state.getNotchName() + "  速度 " + speed + " km/h";
+        player.spigot().sendMessage(
+                ChatMessageType.ACTION_BAR,
+                new TextComponent(message));
+    }
 
-		MinecartGroup group = member.getGroup();
-		TrainState state = plugin.getTrainState(group);
-		state.changeNotch(amount);
-		e.setCancelled(true);
+    private boolean isControlStick(ItemStack item) {
+        if (item == null || item.getType() != Material.STICK || !item.hasItemMeta()) {
+            return false;
+        }
 
-		long speed = Math.round(Math.abs(group.getAverageForce()) * 72.0);
-		String text = "ノッチ " + state.getNotchName() + "  速度 " + speed + " km/h";
-		player.spigot().sendMessage(ChatMessageType.ACTION_BAR, TextComponent.fromLegacyText(text));
-	}
+        ItemMeta meta = item.getItemMeta();
+        Integer value = meta.getPersistentDataContainer().get(
+                plugin.getStickKey(), PersistentDataType.INTEGER);
+        return Integer.valueOf(1).equals(value);
+    }
 }

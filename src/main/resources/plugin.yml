@@ -2,9 +2,10 @@ name: ManualMinecart
 version: 1.0.0
 main: net.sioyama.manualminecart.ManualMinecart
 api-version: '1.21'
+depend: [Train_Carts]
+
 commands:
- manualminecart:
-  description: ManualMinecart main command
-  usage: /manualminecart
-  aliases: [mmc]
-  depend: [Train_Carts]
+  manualminecart:
+    description: ManualMinecart main command
+    usage: /manualminecart <help|set|stick>
+    aliases: [mmc]
