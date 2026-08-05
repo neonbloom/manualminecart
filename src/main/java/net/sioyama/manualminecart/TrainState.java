@@ -34,22 +34,26 @@ public final class TrainState {
         return direction;
     }
 
+    public void setDirection(int direction) {
+        this.direction = direction < 0 ? -1 : 1;
+    }
+
     public void syncDirection(double force) {
         if (Math.abs(force) >= 0.02) {
             direction = force < 0.0 ? -1 : 1;
         }
     }
 
-    public String getNotchName() {
+    public String getDisplayName() {
         return switch (notch) {
-            case EMERGENCY -> "非常";
-            case B3 -> "B3";
-            case B2 -> "B2";
-            case B1 -> "B1";
-            case P1 -> "P1";
-            case P2 -> "P2";
-            case P3 -> "P3";
-            default -> "N";
+            case EMERGENCY -> "非　常";
+            case B3 -> "制動３";
+            case B2 -> "制動２";
+            case B1 -> "制動１";
+            case P1 -> "力行１";
+            case P2 -> "力行２";
+            case P3 -> "力行３";
+            default -> "惰　性";
         };
     }
 
