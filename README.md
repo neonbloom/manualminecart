@@ -2,7 +2,7 @@
 
 Spigot 1.21.1とTrainCarts用のトロッコ手動運転プラグインです。
 
-Minecraftで運転士ゴッコを楽しみましょう。
+Minecraftで運転士ごっこを楽しめます。
 
 ## 導入
 
