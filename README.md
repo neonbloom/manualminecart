@@ -1,8 +1,10 @@
 # ManualMinecart
 
-Spigot 1.21.1とTrainCarts用のトロッコ手動運転プラグインです。
+Spigot TrainCarts用のトロッコ手動運転プラグインです。
 
 Minecraftで運転士ごっこを楽しめます。
+
+1.21.1で動作を確認しています。
 
 ## 導入
 
