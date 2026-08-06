@@ -27,4 +27,4 @@ Minecraftで運転士ごっこを楽しめます。
 JDK 21とMavenを使用します。
 プロジェクトのルートディレクトリで次のコマンドを実行してください。
 
-mvn clean package
+`mvn clean package`
