@@ -5,6 +5,7 @@ import com.bergerkiller.bukkit.tc.controller.MinecartMember;
 import com.bergerkiller.bukkit.tc.controller.MinecartMemberStore;
 import com.bergerkiller.bukkit.tc.properties.TrainProperties;
 import com.bergerkiller.bukkit.tc.properties.TrainPropertiesStore;
+import com.bergerkiller.bukkit.tc.rails.type.RailType;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.IdentityHashMap;
@@ -39,12 +40,22 @@ public final class ManualMinecart extends JavaPlugin {
     private NamespacedKey minecartKey;
     private NamespacedKey stickKey;
     private BukkitTask movementTask;
+    private RailType manualPoweredRail;
+    private RailType manualUnpoweredRail;
 
     @Override
     public void onEnable() {
         minecartKey = new NamespacedKey(this, "manualminecart");
         stickKey = new NamespacedKey(this, "manualminecartstick");
         loadTrainStates();
+
+        // Replace TrainCarts' powered-rail handlers with variants that keep the
+        // normal rail geometry but skip boost/brake physics for MMC trains.
+        // Non-MMC trains still delegate to TrainCarts' original behavior.
+        manualPoweredRail = new ManualPoweredRailType(this, true);
+        manualUnpoweredRail = new ManualPoweredRailType(this, false);
+        RailType.register(manualPoweredRail, true);
+        RailType.register(manualUnpoweredRail, true);
 
         getServer().getPluginManager().registerEvents(new InputNotch(this), this);
         movementTask = getServer().getScheduler().runTaskTimer(this, this::tickTrains, 1L, 1L);
@@ -55,6 +66,12 @@ public final class ManualMinecart extends JavaPlugin {
     public void onDisable() {
         if (movementTask != null) {
             movementTask.cancel();
+        }
+        if (manualPoweredRail != null) {
+            RailType.unregister(manualPoweredRail);
+        }
+        if (manualUnpoweredRail != null) {
+            RailType.unregister(manualUnpoweredRail);
         }
         saveTrainStates();
     }
@@ -71,6 +88,19 @@ public final class ManualMinecart extends JavaPlugin {
         Integer value = minecart.getPersistentDataContainer().get(
                 minecartKey, PersistentDataType.INTEGER);
         return Integer.valueOf(1).equals(value);
+    }
+
+    boolean isManualGroup(MinecartGroup group) {
+        if (group == null) {
+            return false;
+        }
+        for (MinecartMember<?> member : group) {
+            Entity entity = member.getEntity().getEntity();
+            if (entity instanceof Minecart minecart && isManualMinecart(minecart)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     TrainState getTrainState(MinecartGroup group) {
